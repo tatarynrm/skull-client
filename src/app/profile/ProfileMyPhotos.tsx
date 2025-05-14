@@ -4,12 +4,14 @@ import React, { useState } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import api from '@/lib/axios'
 import { setProfilePhotos } from '@/lib/features/user/userSlice'
-import { Eye, EyeOff, Lock, Unlock } from 'lucide-react'
+import { Eye, EyeOff, Lock, Skull, Trash, Unlock } from 'lucide-react'
 
 const ProfileMyPhotos = () => {
   const photos = useSelector((state: RootState) => state.user.profile_photos)
   const [selectedPhotos, setSelectedPhotos] = useState<number[]>([])
   const [visiblePhotos, setVisiblePhotos] = useState<number[]>([])
+  const [showModal, setShowModal] = useState(false)
+  const [modalAction, setModalAction] = useState<'delete' | 'private' | 'public' | null>(null)
 
   const dispatch = useDispatch()
 
@@ -33,7 +35,7 @@ const ProfileMyPhotos = () => {
     try {
       const response = await api.delete(`/cloudinary/delete/${photoId}`)
       if (response.data.success) {
-        setSelectedPhotos([])
+        setSelectedPhotos([]) // Clear selected photos after deletion
         dispatch(setProfilePhotos(photos!.filter((photo) => photo.id !== photoId)))
       } else {
         alert("Не вдалося видалити фото.")
@@ -52,7 +54,7 @@ const ProfileMyPhotos = () => {
 
       if (response.data.success) {
         dispatch(setProfilePhotos(photos!.filter((photo) => !selectedPhotos.includes(photo.id))))
-        setSelectedPhotos([])
+        setSelectedPhotos([]) // Clear selected photos after deletion
       } else {
         alert("Не вдалося видалити фотографії.")
       }
@@ -76,7 +78,7 @@ const ProfileMyPhotos = () => {
             : photo
         )
         dispatch(setProfilePhotos(updated))
-        setSelectedPhotos([])
+        setSelectedPhotos([]) // Clear selected photos after update
       } else {
         alert("Не вдалося оновити приватність фото.")
       }
@@ -84,6 +86,39 @@ const ProfileMyPhotos = () => {
       console.error("Toggle private error:", error)
       alert("Помилка при оновленні приватності.")
     }
+  }
+
+  // Функція для виділення або зняття виділення з усіх фото
+  const handleSelectAll = () => {
+    if (selectedPhotos.length === photos!.length) {
+      setSelectedPhotos([]) // Якщо всі вибрані, зняти виділення
+    } else {
+      setSelectedPhotos(photos!.map(photo => photo.id)) // Виділити всі
+    }
+  }
+
+  // Функція для відкриття модального вікна
+  const openModal = (action: 'delete' | 'private' | 'public') => {
+    setModalAction(action)
+    setShowModal(true)
+  }
+
+  // Функція для закриття модального вікна
+  const closeModal = () => {
+    setShowModal(false)
+    setModalAction(null)
+  }
+
+  // Підтвердження операції в модальному вікні
+  const confirmAction = () => {
+    if (modalAction === 'delete') {
+      handleDeleteMultiple()
+    } else if (modalAction === 'private') {
+      handleTogglePrivate(true)
+    } else if (modalAction === 'public') {
+      handleTogglePrivate(false)
+    }
+    closeModal()
   }
 
   return (
@@ -95,25 +130,35 @@ const ProfileMyPhotos = () => {
       {selectedPhotos.length > 0 && (
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={handleDeleteMultiple}
-            className="bg-red-500 text-white p-2 rounded-lg"
+            onClick={() => openModal('delete')}
+            className="bg-red-500 text-white p-1 rounded-lg cursor-pointer flex gap-1 items-center text-center"
           >
-            Видалити вибрані
+        
+            Видалити обрані
+                <Trash size={16} />
           </button>
           <button
-            onClick={() => handleTogglePrivate(true)}
-            className="bg-yellow-500 text-white p-2 rounded-lg flex items-center gap-1"
+            onClick={() => openModal('private')}
+            className="bg-orange-500 text-white p-1 rounded-lg flex items-center gap-1 cursor-pointer"
           >
-            <Lock size={16} /> Зробити приватними
+             Зробити приватними <Skull size={16}/>
           </button>
           <button
-            onClick={() => handleTogglePrivate(false)}
-            className="bg-green-600 text-white p-2 rounded-lg flex items-center gap-1"
+            onClick={() => openModal('public')}
+            className="bg-green-600 text-white p-1 rounded-lg flex items-center gap-1 cursor-pointer"
           >
-            <Unlock size={16} /> Зробити публічними
+            Зробити публічними  <Unlock size={16} />
           </button>
         </div>
       )}
+
+      {/* Кнопка виділення всіх або зняття виділення з усіх */}
+      <button
+        onClick={handleSelectAll}
+        className="mt-4 bg-slate-600 text-white p-2 rounded-lg flex items-center gap-1 cursor-pointer"
+      >
+        {selectedPhotos.length === photos?.length ? 'Зняти виділення з усіх' : 'Виділити всі фото'}
+      </button>
 
       {photos && photos.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">
@@ -168,6 +213,31 @@ const ProfileMyPhotos = () => {
         </div>
       ) : (
         <p className="text-gray-500 mt-4">У вас ще немає фото.</p>
+      )}
+
+      {/* Модальне вікно підтвердження */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
+          <div className="bg-white p-4 rounded-lg shadow-lg w-1/3">
+            <h3 className="text-lg font-semibold mb-4 text-black">Підтвердження</h3>
+            <p className="mb-4 text-black">
+              Ви справді хочете {modalAction === 'delete' ? 'видалити' : modalAction === 'private' ? 'зробити приватними' : 'зробити публічними'} фото?
+            </p>
+            <div className="flex justify-between">
+              <button onClick={closeModal} className="bg-gray-300 text-black p-2 rounded-lg">
+                Скасувати
+              </button>
+              <button
+                onClick={confirmAction}
+                className={`p-2 rounded-lg text-white ${
+                  modalAction === 'delete' ? 'bg-red-500' : modalAction === 'private' ? 'bg-orange-500' : 'bg-green-600'
+                }`}
+              >
+                Підтвердити
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

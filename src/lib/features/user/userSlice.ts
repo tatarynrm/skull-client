@@ -26,6 +26,7 @@ export interface IUserProfile {
   loking_for?: string;
   photos?: string;
   age?: number;
+  is_premium?:boolean;
 }
 
 export interface userSlice {

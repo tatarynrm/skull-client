@@ -1,5 +1,5 @@
 import api from "@/lib/axios";
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 
 export interface IUser {
   tg_id: string;
@@ -8,6 +8,14 @@ export interface IUser {
   language_code: string;
   photo_url: string;
 }
+
+export interface IPhoto {
+  id: number;
+  url: string;
+  public_id: string;
+  private:boolean;
+}
+
 export interface IUserProfile {
   user_id?: string;
   name?: string;
@@ -19,52 +27,69 @@ export interface IUserProfile {
   photos?: string;
   age?: number;
 }
+
 export interface userSlice {
   isLoaded: boolean;
-
   user: IUser | null;
   profile: IUserProfile | null;
+  profile_photos: IPhoto[] | null;
 }
 
 const initialState: userSlice = {
   user: null,
   isLoaded: false,
   profile: null,
+  profile_photos: null,
 };
 
-export const fetchUser = createAsyncThunk(
-  "user/fetchUser",
-  async (_, thunkAPI) => {
-    try {
-      const res = await api.post("/auth/me", {
-        uts: localStorage.getItem("uts"),
-      }); // Замінити на твій endpoint
+// --- Async actions ---
+export const fetchUser = createAsyncThunk("user/fetchUser", async (_, thunkAPI) => {
+  try {
+    const res = await api.post("/auth/me", {
+      uts: localStorage.getItem("uts"),
+    });
+    return res.data;
+  } catch (err) {
+    return thunkAPI.rejectWithValue(err);
+  }
+});
 
+export const fetchProfile = createAsyncThunk<IUserProfile, string | undefined>(
+  "user/fetchProfile",
+  async (user_id) => {
+    try {
+      const res = await api.post("/auth/profile", { user_id });
       return res.data;
     } catch (err) {
-      return thunkAPI.rejectWithValue(err);
+      console.log(err);
     }
   }
 );
 
-export const fetchProfile = createAsyncThunk<
-  IUserProfile, // Тип результату
-  string | undefined // Тип аргументу
->("user/fetchProfile", async (user_id) => {
-  try {
-    const res = await api.post("/auth/profile", { user_id: user_id });
-    return res.data;
-  } catch (err) {
-    console.log(err);
+export const fetchPhotos = createAsyncThunk<IPhoto[], string | undefined>(
+  "user/fetchPhotos",
+  async (user_id) => {
+    try {
+      const res = await api.post("/cloudinary/get-photos", { user_id });
+      return res.data;
+    } catch (err) {
+      console.log(err);
+    }
   }
-});
+);
 
+// --- Slice ---
 export const userSlice = createSlice({
   name: "user",
   initialState,
   reducers: {
     logout: (state) => {
       state.user = null;
+      state.profile = null;
+      state.profile_photos = null;
+    },
+    setProfilePhotos: (state, action: PayloadAction<IPhoto[]>) => {
+      state.profile_photos = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -80,21 +105,16 @@ export const userSlice = createSlice({
         state.isLoaded = true;
         state.user = null;
       })
-      .addCase(fetchProfile.pending, (state) => {
-        state.isLoaded = false;
-      })
       .addCase(fetchProfile.fulfilled, (state, action) => {
         state.profile = action.payload;
         state.isLoaded = true;
       })
-      .addCase(fetchProfile.rejected, (state) => {
-        state.isLoaded = true;
-        state.profile = null;
+      .addCase(fetchPhotos.fulfilled, (state, action) => {
+        state.profile_photos = action.payload;
       });
   },
 });
 
-// Action creators are generated for each case reducer function
-export const { logout } = userSlice.actions;
+export const { logout, setProfilePhotos } = userSlice.actions;
 
 export default userSlice.reducer;

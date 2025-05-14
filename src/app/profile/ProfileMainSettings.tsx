@@ -37,7 +37,7 @@ const ProfileMainSettings = () => {
           <strong>Стать:</strong> @{profile?.sex}
         </p>
         <p>
-          <strong>Мова:</strong> {user?.language_code.toUpperCase()}
+          <strong>Мова:</strong> {user?.language_code?.toUpperCase() || ' uk'}
         </p>
       </div>
       <div className="location_info w-full md:w-[600] rounded-full bg-red-200">

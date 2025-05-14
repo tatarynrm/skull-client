@@ -120,6 +120,7 @@ const Header = () => {
                 href="/profile"
                 className="dark:text-white text-black flex gap-1 font-bold"
               >
+                Профіль <ShieldUser  className="text-teal-300"/>
                 <Avatar>
                   <AvatarImage src={user.photo_url} alt="user_url" />
                   <AvatarFallback>CN</AvatarFallback>

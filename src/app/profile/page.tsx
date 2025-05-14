@@ -4,14 +4,22 @@ import { useSelector, useDispatch } from "react-redux";
 import { AppDispatch, RootState } from "@/lib/store";
 
 import { useRouter } from "next/navigation";
-import { fetchProfile, logout } from "@/lib/features/user/userSlice";
+import {
+  fetchPhotos,
+  fetchProfile,
+  logout,
+} from "@/lib/features/user/userSlice";
 import api from "@/lib/axios";
 import ProfileMainSettings from "./ProfileMainSettings";
 import ProfileMyLikes from "./ProfileMyLikes";
+import Link from "next/link";
+import { MAIN_NAMES } from "@/constants/main";
+import ProfileMyPhotos from "./ProfileMyPhotos";
 
 // Вкладки
 const tabs = [
   { value: "main", label: "Основна інформація 🧍" },
+  { value: "myphotos", label: "Мої фото 📸" },
   { value: "mylikes", label: "Взаємні симпатії 💖" },
   { value: "photos", label: "Фото 🖼️" },
   { value: "settings", label: "Налаштування ⚙️" },
@@ -24,6 +32,9 @@ type TabValue = (typeof tabs)[number]["value"];
 const Profile: React.FC = () => {
   const user = useSelector((state: RootState) => state.user.user);
   const profile = useSelector((state: RootState) => state.user.profile);
+  const isLoading = useSelector((state: RootState) => state.user.isLoaded);
+  console.log(profile, "profile");
+
   const [activeTab, setActiveTab] = useState<TabValue>("main");
   const [showModal, setShowModal] = useState(false);
   const dispatch = useDispatch<AppDispatch>();
@@ -36,18 +47,38 @@ const Profile: React.FC = () => {
     if (response.status === 200) {
       dispatch(logout());
       setShowModal(false);
-      localStorage.clear()
+      localStorage.clear();
 
       router.push("/");
     }
   };
 
-  useEffect(()=>{
-
-  dispatch(fetchProfile(user?.tg_id));
-
-  },[user?.tg_id])
-
+  useEffect(() => {
+    dispatch(fetchProfile(user?.tg_id));
+    dispatch(fetchPhotos(user?.tg_id));
+  }, [user?.tg_id]);
+  if (!isLoading) {
+    return null;
+  }
+  if (!profile) {
+    return (
+      <div className="min-h-[600px] space-y-10 flex flex-col items-center text-center justify-center">
+        <h2 className="font-bold text-2xl">
+          У вас ще немає анкети в нашому телеграм боті.
+        </h2>
+        <span className="underline text-teal-300">
+          Пропонуємо створити анкету а вже потім, - переглядати дані про неї.
+        </span>
+        <a
+          target="__blank"
+          href={MAIN_NAMES.TG_APP_LINK}
+          className="bg-teal-300 p-2 rounded-xs font-bold"
+        >
+          Розпочати знайомства
+        </a>
+      </div>
+    );
+  }
   return (
     <div className="min-h-[600px] space-y-10">
       {/* Tabs */}
@@ -77,8 +108,9 @@ const Profile: React.FC = () => {
 
       {/* Tab Content */}
       <div className="w-full">
-        {activeTab === "main" && <ProfileMainSettings  />}
+        {activeTab === "main" && <ProfileMainSettings />}
         {activeTab === "mylikes" && <ProfileMyLikes />}
+        {activeTab === "myphotos" && <ProfileMyPhotos />}
         {activeTab === "settings" && (
           <div>
             <h2 className="text-xl font-bold mb-2">Налаштування</h2>

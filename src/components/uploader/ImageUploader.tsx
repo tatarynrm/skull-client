@@ -101,11 +101,13 @@ export default function ImageUploader() {
 
     try {
       const res = await api.post("/cloudinary/upload", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+      
+        
+        // headers: {
+        //   "Content-Type": "multipart/form-data",
+        // },
       });
-
+  console.log(res,'res');
       const data = res.data;
       if (data.url) {
         dispatch(fetchPhotos(profile?.user_id)); // Оновлюємо фото

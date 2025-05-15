@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { AppDispatch, RootState } from "@/lib/store";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   fetchPhotos,
   fetchProfile,
@@ -15,15 +15,15 @@ import ProfileMyLikes from "./ProfileMyLikes";
 import Link from "next/link";
 import { MAIN_NAMES } from "@/constants/main";
 import ProfileMyPhotos from "./ProfileMyPhotos";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// Вкладки
+// Tabs
 const tabs = [
   { value: "main", label: "Основна інформація 🧍" },
   { value: "myphotos", label: "Мої фото 📸" },
   { value: "mylikes", label: "Взаємні симпатії 💖" },
   { value: "photos", label: "Фото 🖼️" },
   { value: "settings", label: "Налаштування ⚙️" },
-
   { value: "logout", label: "Вийти 🚪" },
 ] as const;
 
@@ -33,22 +33,38 @@ const Profile: React.FC = () => {
   const user = useSelector((state: RootState) => state.user.user);
   const profile = useSelector((state: RootState) => state.user.profile);
   const isLoading = useSelector((state: RootState) => state.user.isLoaded);
-  console.log(profile, "profile");
 
-  const [activeTab, setActiveTab] = useState<TabValue>("main");
-  const [showModal, setShowModal] = useState(false);
+
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const tabFromUrl = searchParams.get("tab") as TabValue;
+  const [activeTab, setActiveTab] = useState<TabValue>(tabFromUrl || "main");
+  const [showModal, setShowModal] = useState(false);
+
+  // Встановлюємо таб з URL при першому рендері
+  useEffect(() => {
+    if (tabFromUrl && tabs.some((tab) => tab.value === tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
+
+  const handleTabChange = (tab: TabValue) => {
+    if (tab === "logout") {
+      setShowModal(true);
+    } else {
+      const newUrl = `/profile?tab=${tab}`;
+      router.push(newUrl); // змінює URL
+    }
+  };
 
   const handleLogout = async () => {
     const response = await api.get("/auth/logout");
-    console.log(response);
-
     if (response.status === 200) {
       dispatch(logout());
       setShowModal(false);
       localStorage.clear();
-
       router.push("/");
     }
   };
@@ -57,9 +73,19 @@ const Profile: React.FC = () => {
     dispatch(fetchProfile(user?.tg_id));
     dispatch(fetchPhotos(user?.tg_id));
   }, [user?.tg_id]);
-  if (!isLoading) {
-    return null;
-  }
+
+  if (!isLoading) return <>
+    <div className="min-h-[600px] space-y-10 flex flex-col items-center text-center justify-center">
+         <Skeleton className="h-4 w-[600px]" />
+         <Skeleton className="h-4 w-[600px]" />
+         <Skeleton className="h-4 w-[600px]" />
+         <Skeleton className="h-4 w-[600px]" />
+         <Skeleton className="h-4 w-[600px]" />
+         <Skeleton className="h-4 w-[600px]" />
+
+    </div>
+  </>;
+
   if (!profile) {
     return (
       <div className="min-h-[600px] space-y-10 flex flex-col items-center text-center justify-center">
@@ -79,6 +105,7 @@ const Profile: React.FC = () => {
       </div>
     );
   }
+
   return (
     <div className="min-h-[600px] space-y-10">
       {/* Tabs */}
@@ -86,13 +113,7 @@ const Profile: React.FC = () => {
         {tabs.map((tab) => (
           <button
             key={tab.value}
-            onClick={() => {
-              if (tab.value === "logout") {
-                setShowModal(true);
-              } else {
-                setActiveTab(tab.value);
-              }
-            }}
+            onClick={() => handleTabChange(tab.value)}
             className={`${
               tab.value === "logout" && "bg-red-400"
             } cursor-pointer px-6 py-2 rounded-full transition font-semibold ${
@@ -119,7 +140,7 @@ const Profile: React.FC = () => {
         )}
       </div>
 
-      {/* Modal */}
+      {/* Logout Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 shadow-lg w-[90%] max-w-sm">
